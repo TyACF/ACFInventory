@@ -1,7 +1,5 @@
-/* add code here */
+/add code here/
 
-
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -18,7 +16,6 @@
 body{background:var(--carbon);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;}
 .screen{display:none;min-height:100vh;flex-direction:column;}
 .screen.active{display:flex;}
-/* CHECKING again
 
 /* HOME */
 #screen-home{position:relative;overflow:hidden;}
@@ -30,6 +27,10 @@ body{background:var(--carbon);color:var(--text);font-family:'Barlow',sans-serif;
 .hero-h1 span{color:var(--highlight);}
 .hero-sub{margin-top:10px;color:var(--muted);font-size:14px;font-weight:300;}
 .parts-grid{position:relative;z-index:1;padding:22px 48px 52px;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;}
+.backup-bar{position:relative;z-index:1;margin:0 48px 40px;padding:16px 0 0;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:12px;}
+.backup-btn{background:none;border:1px solid rgba(184,197,208,.2);border-radius:4px;color:var(--steel);padding:9px 16px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;transition:all .14s;}
+.backup-btn:hover{border-color:var(--rust);color:var(--rust);}
+.backup-note{flex-basis:100%;font-size:11px;color:var(--muted);line-height:1.5;}
 .part-btn{background:var(--mill);border:1px solid var(--border);border-radius:5px;padding:20px 14px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:11px;transition:all .16s;position:relative;overflow:hidden;}
 .part-btn::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--rust);transform:scaleX(0);transition:transform .16s;transform-origin:left;}
 .part-btn:hover{background:#2c3748;border-color:rgba(184,197,208,.25);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.4);}
@@ -178,6 +179,7 @@ body{background:var(--carbon);color:var(--text);font-family:'Barlow',sans-serif;
 @media(max-width:820px){
   .home-hero{padding:28px 20px 16px;flex-direction:column;align-items:flex-start;gap:14px;}
   .parts-grid{padding:16px 20px 40px;}
+  .backup-bar{margin:0 20px 32px;}
   .inv-body{flex-direction:column;}
   .filter-sidebar{width:100%;border-right:none;border-bottom:1px solid var(--border);}
   .results-panel{padding:16px 18px;}
@@ -233,6 +235,17 @@ body{background:var(--carbon);color:var(--text);font-family:'Barlow',sans-serif;
 .toggle-switch input:checked + .toggle-slider{background:rgba(61,168,122,.25);border-color:var(--success);}
 .toggle-switch input:checked + .toggle-slider::before{background:var(--success);transform:translateX(18px);}
 
+.sy-confirm-ov{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px;}
+.sy-confirm{background:#1E2533;border:1px solid rgba(184,197,208,.18);border-radius:8px;padding:22px;max-width:380px;width:100%;}
+.sy-confirm-msg{color:var(--text);font-size:14px;line-height:1.5;white-space:pre-line;margin-bottom:18px;}
+.sy-confirm-btns{display:flex;gap:10px;justify-content:flex-end;}
+.sy-confirm-btns button{padding:9px 18px;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:1px solid transparent;}
+.sy-c-cancel{background:none;border-color:rgba(184,197,208,.2);color:var(--muted);}
+.sy-c-cancel:hover{color:var(--text);border-color:var(--muted);}
+.sy-c-ok{background:var(--danger);color:#fff;border:none;}
+.sy-c-ok:hover{filter:brightness(1.12);}
+#sy-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:#252f40;border:1px solid rgba(184,197,208,.2);color:var(--text);padding:11px 20px;border-radius:6px;font-size:13px;z-index:420;opacity:0;pointer-events:none;transition:all .25s;max-width:90%;text-align:center;}
+#sy-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
@@ -254,6 +267,12 @@ body{background:var(--carbon);color:var(--text);font-family:'Barlow',sans-serif;
     </div>
   </div>
   <div class="parts-grid" id="parts-grid"></div>
+  <div class="backup-bar">
+    <button class="backup-btn" onclick="exportBackup()">⤓ Backup All Stock</button>
+    <button class="backup-btn" onclick="document.getElementById('restore-file').click()">⤒ Restore From Backup</button>
+    <input type="file" id="restore-file" accept="application/json,.json" style="display:none" onchange="importBackup(this)">
+    <div class="backup-note">Saves or loads your entire inventory as a file, so your stock survives app updates and moving between devices.</div>
+  </div>
 </div>
 
 <!-- INVENTORY -->
@@ -332,8 +351,7 @@ const GRADES=['A36','A572 Gr50','A992','A500 Gr B','A500 Gr C','A1085','A588','A
 
 // ── Auto-designation builders ──
 const AUTO_DESIG = {
-  'W-Beam':     f => { const d=f.depth, w=f.weight; return (d&&w) ? `W${d}x${w}` : (d?`W${d}x?`:''); },
-  'S-Beam':     f => { const d=f.depth, w=f.weight; return (d&&w) ? `S${d}x${w}` : (d?`S${d}x?`:''); },
+  'Beams':      f => { const d=f.depth, w=f.weight; return (d&&w)?`W${d}x${w}`:(d?`W${d}x?`:''); },
   'Angle':      f => { const a=f.leg_a, b=f.leg_b, t=f.thickness; return (a&&b&&t)?`L${a}x${b}x${t}`:(a&&b)?`L${a}x${b}x?`:(a?`L${a}x?x?`:''); },
   'Channel':    f => { const d=f.depth, w=f.weight; return (d&&w)?`C${d}x${w}`:(d?`C${d}x?`:''); },
   'Round Tube': f => { const o=f.od, t=f.wall; return (o&&t)?`${o}x${t}`:(o?`${o}x?`:''); },
@@ -345,56 +363,111 @@ const AUTO_DESIG = {
   'Square Bar': f => { const s=f.size; return s?`SQ${s}`:''; },
 };
 
+// Standard beam dimensions (AISC values, as published in references like the Alro Metals Guide).
+// A=depth, B=flange width (bf), C=web thickness (tw), tf=flange thickness, weight=lb/ft.
+// This is a STARTER set of common sizes — verify against your guide; can be extended to the full table.
+const BEAM_SIZES = (()=>{
+  // [depth, B(flange width), C(web thick), tf(flange thick), weight]
+  const W = {
+    'W4x13':[4.16,4.060,0.280,0.345,13],
+    'W5x16':[5.01,5.000,0.240,0.360,16],'W5x19':[5.15,5.030,0.270,0.430,19],
+    'W6x9':[5.90,3.940,0.170,0.215,9],'W6x12':[6.03,4.000,0.230,0.280,12],'W6x15':[5.99,5.990,0.230,0.260,15],
+    'W6x16':[6.28,4.030,0.260,0.405,16],'W6x20':[6.20,6.020,0.260,0.365,20],'W6x25':[6.38,6.080,0.320,0.455,25],
+    'W8x10':[7.89,3.940,0.170,0.205,10],'W8x13':[7.99,4.000,0.230,0.255,13],'W8x15':[8.11,4.015,0.245,0.315,15],
+    'W8x18':[8.14,5.250,0.230,0.330,18],'W8x21':[8.28,5.270,0.250,0.400,21],'W8x24':[7.93,6.495,0.245,0.400,24],
+    'W8x28':[8.06,6.535,0.285,0.465,28],'W8x31':[8.00,7.995,0.285,0.435,31],'W8x35':[8.12,8.020,0.310,0.495,35],
+    'W8x40':[8.25,8.070,0.360,0.560,40],'W8x48':[8.50,8.110,0.400,0.685,48],'W8x58':[8.75,8.220,0.510,0.810,58],'W8x67':[9.00,8.280,0.570,0.935,67],
+    'W10x12':[9.87,3.960,0.190,0.210,12],'W10x15':[9.99,4.000,0.230,0.270,15],'W10x17':[10.11,4.010,0.240,0.330,17],
+    'W10x19':[10.24,4.020,0.250,0.395,19],'W10x22':[10.17,5.750,0.240,0.360,22],'W10x26':[10.33,5.770,0.260,0.440,26],
+    'W10x30':[10.47,5.810,0.300,0.510,30],'W10x33':[9.73,7.960,0.290,0.435,33],'W10x39':[9.92,7.985,0.315,0.530,39],
+    'W10x45':[10.10,8.020,0.350,0.620,45],'W10x49':[9.98,10.000,0.340,0.560,49],'W10x54':[10.09,10.030,0.370,0.615,54],
+    'W10x60':[10.22,10.080,0.420,0.680,60],'W10x68':[10.40,10.130,0.470,0.770,68],'W10x77':[10.60,10.190,0.530,0.870,77],
+    'W10x88':[10.84,10.265,0.605,0.990,88],'W10x100':[11.10,10.340,0.680,1.120,100],'W10x112':[11.36,10.415,0.755,1.250,112],
+    'W12x14':[11.91,3.970,0.200,0.225,14],'W12x16':[11.99,3.990,0.220,0.265,16],'W12x19':[12.16,4.005,0.235,0.350,19],
+    'W12x22':[12.31,4.030,0.260,0.425,22],'W12x26':[12.22,6.490,0.230,0.380,26],'W12x30':[12.34,6.520,0.260,0.440,30],
+    'W12x35':[12.50,6.560,0.300,0.520,35],'W12x40':[11.94,8.005,0.295,0.515,40],'W12x45':[12.06,8.045,0.335,0.575,45],
+    'W12x50':[12.19,8.080,0.370,0.640,50],'W12x53':[12.06,9.995,0.345,0.575,53],'W12x58':[12.19,10.010,0.360,0.640,58],
+    'W12x65':[12.12,12.000,0.390,0.605,65],'W12x72':[12.25,12.040,0.430,0.670,72],'W12x79':[12.38,12.080,0.470,0.735,79],'W12x87':[12.53,12.125,0.515,0.810,87],
+    'W14x22':[13.74,5.000,0.230,0.335,22],'W14x26':[13.91,5.025,0.255,0.420,26],'W14x30':[13.84,6.730,0.270,0.385,30],
+    'W14x34':[13.98,6.745,0.285,0.455,34],'W14x38':[14.10,6.770,0.310,0.515,38],'W14x43':[13.66,7.995,0.305,0.530,43],
+    'W14x48':[13.79,8.030,0.340,0.595,48],'W14x53':[13.92,8.060,0.370,0.660,53],'W14x61':[13.89,9.995,0.375,0.645,61],
+    'W14x68':[14.04,10.035,0.415,0.720,68],'W14x74':[14.17,10.070,0.450,0.785,74],'W14x82':[14.31,10.130,0.510,0.855,82],'W14x90':[14.02,14.520,0.440,0.710,90],
+    'W16x26':[15.69,5.500,0.250,0.345,26],'W16x31':[15.88,5.525,0.275,0.440,31],'W16x36':[15.86,6.985,0.295,0.430,36],
+    'W16x40':[16.01,6.995,0.305,0.505,40],'W16x45':[16.13,7.035,0.345,0.565,45],'W16x50':[16.26,7.070,0.380,0.630,50],'W16x57':[16.43,7.120,0.430,0.715,57],
+    'W18x35':[17.70,6.000,0.300,0.425,35],'W18x40':[17.90,6.015,0.315,0.525,40],'W18x46':[18.06,6.060,0.360,0.605,46],
+    'W18x50':[17.99,7.495,0.355,0.570,50],'W18x55':[18.11,7.530,0.390,0.630,55],'W18x60':[18.24,7.555,0.415,0.695,60],'W18x65':[18.35,7.590,0.450,0.750,65],'W18x71':[18.47,7.635,0.495,0.810,71],
+    'W21x44':[20.66,6.500,0.350,0.450,44],'W21x50':[20.83,6.530,0.380,0.535,50],'W21x57':[21.06,6.555,0.405,0.650,57],'W21x62':[20.99,8.240,0.400,0.615,62],'W21x68':[21.13,8.270,0.430,0.685,68],
+    'W24x55':[23.57,7.005,0.395,0.505,55],'W24x62':[23.74,7.040,0.430,0.590,62],'W24x68':[23.73,8.965,0.415,0.585,68],'W24x76':[23.92,8.990,0.440,0.680,76],'W24x84':[24.10,9.020,0.470,0.770,84],
+  };
+  const S = {
+    'S3x5.7':[3.00,2.330,0.170,0.260,5.7],'S3x7.5':[3.00,2.509,0.349,0.260,7.5],
+    'S4x7.7':[4.00,2.663,0.193,0.293,7.7],'S4x9.5':[4.00,2.796,0.326,0.293,9.5],
+    'S5x10':[5.00,3.004,0.214,0.326,10],'S5x14.75':[5.00,3.284,0.494,0.326,14.75],
+    'S6x12.5':[6.00,3.332,0.232,0.359,12.5],'S6x17.25':[6.00,3.565,0.465,0.359,17.25],
+    'S8x18.4':[8.00,4.001,0.271,0.426,18.4],'S8x23':[8.00,4.171,0.441,0.426,23],
+    'S10x25.4':[10.00,4.661,0.311,0.491,25.4],'S10x35':[10.00,4.944,0.594,0.491,35],
+    'S12x31.8':[12.00,5.000,0.350,0.544,31.8],'S12x35':[12.00,5.078,0.428,0.544,35],'S12x40.8':[12.00,5.252,0.462,0.659,40.8],'S12x50':[12.00,5.477,0.687,0.659,50],
+  };
+  const out={};
+  const add=src=>Object.keys(src).forEach(k=>{const a=src[k];out[k.toUpperCase()]={depth:a[0],flange_width:a[1],web_thick:a[2],flange_thick:a[3],weight:a[4]};});
+  add(W);add(S);
+  return out;
+})();
+function normBeam(s){return String(s||'').toUpperCase().replace(/\u00d7/g,'X').replace(/\s+/g,'');}
+
+// Standard C-channel dimensions (AISC, as in the Alro guide). A=depth, B=flange width, C=web thick, weight=lb/ft.
+const CHANNEL_SIZES = (()=>{
+  const C = { // [depth, B(flange), C(web), weight]
+    'C3x4.1':[3.00,1.410,0.170,4.1],'C3x5':[3.00,1.498,0.258,5],'C3x6':[3.00,1.596,0.356,6],
+    'C4x5.4':[4.00,1.584,0.184,5.4],'C4x7.25':[4.00,1.721,0.321,7.25],
+    'C5x6.7':[5.00,1.750,0.190,6.7],'C5x9':[5.00,1.885,0.325,9],
+    'C6x8.2':[6.00,1.920,0.200,8.2],'C6x10.5':[6.00,2.034,0.314,10.5],'C6x13':[6.00,2.157,0.437,13],
+    'C7x9.8':[7.00,2.090,0.210,9.8],'C7x12.25':[7.00,2.194,0.314,12.25],'C7x14.75':[7.00,2.299,0.419,14.75],
+    'C8x11.5':[8.00,2.260,0.220,11.5],'C8x13.75':[8.00,2.343,0.303,13.75],'C8x18.75':[8.00,2.527,0.487,18.75],
+    'C9x13.4':[9.00,2.433,0.233,13.4],'C9x15':[9.00,2.485,0.285,15],'C9x20':[9.00,2.648,0.448,20],
+    'C10x15.3':[10.00,2.600,0.240,15.3],'C10x20':[10.00,2.739,0.379,20],'C10x25':[10.00,2.886,0.526,25],'C10x30':[10.00,3.033,0.673,30],
+    'C12x20.7':[12.00,2.942,0.282,20.7],'C12x25':[12.00,3.047,0.387,25],'C12x30':[12.00,3.170,0.510,30],
+    'C15x33.9':[15.00,3.400,0.400,33.9],'C15x40':[15.00,3.520,0.520,40],'C15x50':[15.00,3.716,0.716,50],
+  };
+  const out={};
+  Object.keys(C).forEach(k=>{const a=C[k];out[k.toUpperCase()]={depth:a[0],flange_width:a[1],web_thick:a[2],weight:a[3]};});
+  return out;
+})();
+
+// Per-shape size tables (designation -> standard dimensions). Extend with the full Alro tables as needed.
+const SIZE_TABLES = {'Beams':BEAM_SIZES,'Channel':CHANNEL_SIZES};
+function normDesig(s){return normBeam(s);}
+function lookupSize(part,desig){const t=SIZE_TABLES[part];return t?(t[normDesig(desig)]||null):null;}
+function lookupBeam(desig){return lookupSize(currentPart,desig);} // back-compat alias
+
 const DEFS = {
-  "W-Beam":{
-    icon:s=>svg_w(s), desc:"Wide Flange",
-    dimSVG:()=>`<svg viewBox="0 0 240 185" width="218" height="140" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect x="30" y="28" width="180" height="18" fill="#B8C5D0" opacity=".85"/> <rect x="111" y="46" width="18" height="88" fill="#B8C5D0" opacity=".85"/> <rect x="30" y="134" width="180" height="18" fill="#B8C5D0" opacity=".85"/> <line x1="16" y1="28" x2="16" y2="152" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="10" y1="28" x2="22" y2="28" stroke="#E8A838" stroke-width="1.5"/> <line x1="10" y1="152" x2="22" y2="152" stroke="#E8A838" stroke-width="1.5"/> <text x="16" y="95" fill="#E8A838" font-size="16" font-family="Barlow Condensed" font-weight="700" text-anchor="middle" transform="rotate(-90 16 95)">d</text> <line x1="30" y1="168" x2="210" y2="168" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="30" y1="162" x2="30" y2="174" stroke="#E8A838" stroke-width="1.5"/> <line x1="210" y1="162" x2="210" y2="174" stroke="#E8A838" stroke-width="1.5"/> <text x="120" y="182" fill="#E8A838" font-size="16" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">bf</text> </svg>`,
+  "Beams":{
+    icon:s=>svg_w(s), desc:"W / S / I \u2014 Wide Flange & Standard",
+    dimSVG:()=>`<svg viewBox="0 0 240 185" width="218" height="140" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect x="30" y="28" width="180" height="18" fill="#B8C5D0" opacity=".85"/> <rect x="111" y="46" width="18" height="88" fill="#B8C5D0" opacity=".85"/> <rect x="30" y="134" width="180" height="18" fill="#B8C5D0" opacity=".85"/> <line x1="16" y1="28" x2="16" y2="152" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="10" y1="28" x2="22" y2="28" stroke="#E8A838" stroke-width="1.5"/> <line x1="10" y1="152" x2="22" y2="152" stroke="#E8A838" stroke-width="1.5"/> <text x="16" y="95" fill="#E8A838" font-size="15" font-family="Barlow Condensed" font-weight="700" text-anchor="middle" transform="rotate(-90 16 95)">A (depth)</text> <line x1="30" y1="168" x2="210" y2="168" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="30" y1="162" x2="30" y2="174" stroke="#E8A838" stroke-width="1.5"/> <line x1="210" y1="162" x2="210" y2="174" stroke="#E8A838" stroke-width="1.5"/> <text x="120" y="182" fill="#E8A838" font-size="15" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">B (flange)</text> <text x="150" y="95" fill="#E8A838" font-size="14" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">C (web)</text> </svg>`,
+    sizeLookup:true,
     filterFields:[
-      {key:"designation",label:"Designation",type:"text",placeholder:"e.g. W8x31"},
-      {key:"depth",label:"Depth d (in)",type:"number",placeholder:"e.g. 8.00"},
-      {key:"flange_width",label:"Flange Width bf (in)",type:"number",placeholder:"e.g. 7.995"},
-      {key:"flange_thick",label:"Flange Thick tf (in)",type:"number",placeholder:"e.g. 0.435"},
-      {key:"web_thick",label:"Web Thick tw (in)",type:"number",placeholder:"e.g. 0.285"},
+      {key:"designation",label:"Designation",type:"text",placeholder:"e.g. W8x31 / S6x12.5"},
+      {key:"depth",label:"Depth A (in)",type:"number",placeholder:"e.g. 8.00"},
+      {key:"flange_width",label:"Flange Width B (in)",type:"number",placeholder:"e.g. 7.995"},
+      {key:"web_thick",label:"Web Thick C (in)",type:"number",placeholder:"e.g. 0.285"},
+      {key:"flange_thick",label:"Flange Thick (in)",type:"number",placeholder:"e.g. 0.435"},
       {key:"weight",label:"Weight (lb/ft)",type:"number",placeholder:"e.g. 31"},
       {key:"length",label:"Length (in)",type:"number",placeholder:"e.g. 20"},
       {key:"grade",label:"Material Grade",type:"grade"},
     ],
     itemFields:[
-      {key:"depth",label:"Depth d (in)",ph:"8.00",auto:true},
-      {key:"flange_width",label:"Flange Width bf (in)",ph:"7.995",auto:true},
-      {key:"flange_thick",label:"Flange Thick tf (in)",ph:"0.435",auto:true},
-      {key:"web_thick",label:"Web Thick tw (in)",ph:"0.285",auto:true},
+      {key:"depth",label:"Depth A (in)",ph:"8.00",auto:true},
+      {key:"flange_width",label:"Flange Width B (in)",ph:"7.995",auto:true},
+      {key:"web_thick",label:"Web Thick C (in)",ph:"0.285",auto:true},
+      {key:"flange_thick",label:"Flange Thick (in)",ph:"0.435",auto:true},
       {key:"weight",label:"Weight (lb/ft)",ph:"31",auto:true},
       {key:"length",label:"Length (in)",ph:"20"},
       {key:"qty",label:"Qty (pcs) *",ph:"5",num:true,req:true},
       {key:"grade",label:"Material Grade",type:"grade"},
       {key:"notes",label:"Notes",ph:"optional",full:true},
     ],
-    displayDims:["depth","flange_width","flange_thick","web_thick","weight","length"],
-    dimLabels:["d (in)","bf (in)","tf (in)","tw (in)","lb/ft","Length in"],
-  },
-  "S-Beam":{
-    icon:s=>svg_s(s), desc:"Standard I-Beam",
-    dimSVG:()=>`<svg viewBox="0 0 240 185" width="218" height="140" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect x="30" y="28" width="180" height="18" fill="#B8C5D0" opacity=".85"/> <rect x="111" y="46" width="18" height="88" fill="#B8C5D0" opacity=".85"/> <rect x="50" y="134" width="140" height="18" fill="#B8C5D0" opacity=".85"/> <line x1="16" y1="28" x2="16" y2="152" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="10" y1="28" x2="22" y2="28" stroke="#E8A838" stroke-width="1.5"/> <line x1="10" y1="152" x2="22" y2="152" stroke="#E8A838" stroke-width="1.5"/> <text x="16" y="95" fill="#E8A838" font-size="16" font-family="Barlow Condensed" font-weight="700" text-anchor="middle" transform="rotate(-90 16 95)">d</text> <line x1="30" y1="168" x2="210" y2="168" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="30" y1="162" x2="30" y2="174" stroke="#E8A838" stroke-width="1.5"/> <line x1="210" y1="162" x2="210" y2="174" stroke="#E8A838" stroke-width="1.5"/> <text x="120" y="182" fill="#E8A838" font-size="16" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">bf</text> </svg>`,
-    filterFields:[
-      {key:"designation",label:"Designation",type:"text",placeholder:"e.g. S8x23"},
-      {key:"depth",label:"Depth d (in)",type:"number",placeholder:""},
-      {key:"flange_width",label:"Flange Width bf (in)",type:"number",placeholder:""},
-      {key:"weight",label:"Weight (lb/ft)",type:"number",placeholder:""},
-      {key:"length",label:"Length (in)",type:"number",placeholder:""},
-      {key:"grade",label:"Material Grade",type:"grade"},
-    ],
-    itemFields:[
-      {key:"depth",label:"Depth d (in)",ph:"",auto:true},
-      {key:"flange_width",label:"Flange Width bf (in)",ph:"",auto:true},
-      {key:"weight",label:"Weight (lb/ft)",ph:"",auto:true},
-      {key:"length",label:"Length (in)",ph:"20"},
-      {key:"qty",label:"Qty (pcs) *",ph:"5",num:true,req:true},
-      {key:"grade",label:"Material Grade",type:"grade"},
-      {key:"notes",label:"Notes",ph:"optional",full:true},
-    ],
-    displayDims:["depth","flange_width","weight","length"],
-    dimLabels:["d (in)","bf (in)","lb/ft","Length in"],
+    displayDims:["depth","flange_width","web_thick","flange_thick","weight","length"],
+    dimLabels:["A: d (in)","B: bf (in)","C: tw (in)","tf (in)","lb/ft","Length in"],
   },
   "Angle":{
     icon:s=>svg_angle(s), desc:"L-Shape / Angle Iron",
@@ -403,7 +476,7 @@ const DEFS = {
       {key:"designation",label:"Designation",type:"text",placeholder:"e.g. L4x4x1/2"},
       {key:"leg_a",label:"Leg A (in)",type:"number",placeholder:"e.g. 4"},
       {key:"leg_b",label:"Leg B (in)",type:"number",placeholder:"e.g. 4"},
-      {key:"thickness",label:"Thickness t (in)",type:"number",placeholder:"e.g. 0.500"},
+      {key:"thickness",label:"Thickness C (in)",type:"number",placeholder:"e.g. 1/2"},
       {key:"weight",label:"Weight (lb/ft)",type:"number",placeholder:""},
       {key:"length",label:"Length (in)",type:"number",placeholder:""},
       {key:"grade",label:"Material Grade",type:"grade"},
@@ -411,7 +484,7 @@ const DEFS = {
     itemFields:[
       {key:"leg_a",label:"Leg A (in)",ph:"4",auto:true},
       {key:"leg_b",label:"Leg B (in)",ph:"4",auto:true},
-      {key:"thickness",label:"Thickness t (in)",ph:"0.500",auto:true},
+      {key:"thickness",label:"Thickness C (in)",ph:"1/2",auto:true},
       {key:"weight",label:"Weight (lb/ft)",ph:""},
       {key:"length",label:"Length (in)",ph:"20"},
       {key:"qty",label:"Qty (pcs) *",ph:"5",num:true,req:true},
@@ -419,32 +492,33 @@ const DEFS = {
       {key:"notes",label:"Notes",ph:"optional",full:true},
     ],
     displayDims:["leg_a","leg_b","thickness","weight","length"],
-    dimLabels:["Leg A","Leg B","t (in)","lb/ft","Length in"],
+    dimLabels:["Leg A","Leg B","C (in)","lb/ft","Length in"],
   },
   "Channel":{
     icon:s=>svg_channel(s), desc:"C-Channel / MC-Channel",
-    dimSVG:()=>`<svg viewBox="0 0 220 185" width="200" height="140" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect x="30" y="28" width="120" height="18" fill="#B8C5D0" opacity=".85"/> <rect x="30" y="28" width="18" height="124" fill="#B8C5D0" opacity=".85"/> <rect x="30" y="134" width="120" height="18" fill="#B8C5D0" opacity=".85"/> <line x1="16" y1="28" x2="16" y2="152" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="10" y1="28" x2="22" y2="28" stroke="#E8A838" stroke-width="1.5"/> <line x1="10" y1="152" x2="22" y2="152" stroke="#E8A838" stroke-width="1.5"/> <text x="16" y="95" fill="#E8A838" font-size="16" font-family="Barlow Condensed" font-weight="700" text-anchor="middle" transform="rotate(-90 16 95)">d</text> <line x1="30" y1="168" x2="150" y2="168" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="30" y1="162" x2="30" y2="174" stroke="#E8A838" stroke-width="1.5"/> <line x1="150" y1="162" x2="150" y2="174" stroke="#E8A838" stroke-width="1.5"/> <text x="90" y="182" fill="#E8A838" font-size="16" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">bf</text> </svg>`,
+    dimSVG:()=>`<svg viewBox="0 0 220 185" width="200" height="140" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect x="30" y="28" width="120" height="18" fill="#B8C5D0" opacity=".85"/> <rect x="30" y="28" width="18" height="124" fill="#B8C5D0" opacity=".85"/> <rect x="30" y="134" width="120" height="18" fill="#B8C5D0" opacity=".85"/> <line x1="16" y1="28" x2="16" y2="152" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="10" y1="28" x2="22" y2="28" stroke="#E8A838" stroke-width="1.5"/> <line x1="10" y1="152" x2="22" y2="152" stroke="#E8A838" stroke-width="1.5"/> <text x="16" y="95" fill="#E8A838" font-size="15" font-family="Barlow Condensed" font-weight="700" text-anchor="middle" transform="rotate(-90 16 95)">A (depth)</text> <line x1="30" y1="168" x2="150" y2="168" stroke="#E8A838" stroke-width="1.5" stroke-dasharray="4,3"/> <line x1="30" y1="162" x2="30" y2="174" stroke="#E8A838" stroke-width="1.5"/> <line x1="150" y1="162" x2="150" y2="174" stroke="#E8A838" stroke-width="1.5"/> <text x="90" y="182" fill="#E8A838" font-size="15" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">B (flange)</text> <text x="62" y="95" fill="#E8A838" font-size="14" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">C</text> </svg>`,
+    sizeLookup:true,
     filterFields:[
       {key:"designation",label:"Designation",type:"text",placeholder:"e.g. C8x18.75"},
-      {key:"depth",label:"Depth d (in)",type:"number",placeholder:""},
-      {key:"flange_width",label:"Flange Width bf (in)",type:"number",placeholder:""},
-      {key:"web_thick",label:"Web Thick tw (in)",type:"number",placeholder:""},
-      {key:"weight",label:"Weight (lb/ft)",type:"number",placeholder:""},
-      {key:"length",label:"Length (in)",type:"number",placeholder:""},
+      {key:"depth",label:"Depth A (in)",type:"number",placeholder:"e.g. 8.00"},
+      {key:"flange_width",label:"Flange Width B (in)",type:"number",placeholder:"e.g. 2.527"},
+      {key:"web_thick",label:"Web Thick C (in)",type:"number",placeholder:"e.g. 0.487"},
+      {key:"weight",label:"Weight (lb/ft)",type:"number",placeholder:"e.g. 18.75"},
+      {key:"length",label:"Length (in)",type:"number",placeholder:"e.g. 20"},
       {key:"grade",label:"Material Grade",type:"grade"},
     ],
     itemFields:[
-      {key:"depth",label:"Depth d (in)",ph:"",auto:true},
-      {key:"flange_width",label:"Flange Width bf (in)",ph:"",auto:true},
-      {key:"web_thick",label:"Web Thick tw (in)",ph:""},
-      {key:"weight",label:"Weight (lb/ft)",ph:"",auto:true},
+      {key:"depth",label:"Depth A (in)",ph:"8.00",auto:true},
+      {key:"flange_width",label:"Flange Width B (in)",ph:"2.527",auto:true},
+      {key:"web_thick",label:"Web Thick C (in)",ph:"0.487",auto:true},
+      {key:"weight",label:"Weight (lb/ft)",ph:"18.75",auto:true},
       {key:"length",label:"Length (in)",ph:"20"},
       {key:"qty",label:"Qty (pcs) *",ph:"5",num:true,req:true},
       {key:"grade",label:"Material Grade",type:"grade"},
       {key:"notes",label:"Notes",ph:"optional",full:true},
     ],
     displayDims:["depth","flange_width","web_thick","weight","length"],
-    dimLabels:["d (in)","bf (in)","tw (in)","lb/ft","Length in"],
+    dimLabels:["A: d (in)","B: bf (in)","C: tw (in)","lb/ft","Length in"],
   },
   "Round Tube":{
     icon:s=>svg_roundtube(s), desc:"HSS Round / Pipe",
@@ -608,49 +682,97 @@ function svg_plate(s){return`<svg width="${s}" height="${s}" viewBox="0 0 52 52"
 function svg_roundbar(s){return`<svg width="${s}" height="${s}" viewBox="0 0 52 52" fill="none"><circle cx="26" cy="26" r="18" fill="#B8C5D0" opacity=".9"/></svg>`;}
 function svg_sqbar(s){return`<svg width="${s}" height="${s}" viewBox="0 0 52 52" fill="none"><rect x="10" y="10" width="32" height="32" fill="#B8C5D0" opacity=".9"/></svg>`;}
 
-// Storage - Google Sheets shared inventory
-const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzqajVzQGIAUK6XrM6-D5MfEpCZLiNDtof1yB0lKzTui0zcNbjRR87g0Lskvp9bCF_r3w/exec";
-let allSheetItems = [];
-let sheetLoaded = false;
-
-async function loadAllItemsFromSheet(){
-  try{
-    const response = await fetch(SHEET_API_URL);
-    allSheetItems = await response.json();
-    if(!Array.isArray(allSheetItems)) allSheetItems = [];
-    sheetLoaded = true;
-  }catch(err){
-    console.error('Could not load inventory from Google Sheets:', err);
-    alert('Could not load inventory from Google Sheets. Check your Apps Script URL and deployment permissions.');
-    allSheetItems = [];
-    sheetLoaded = true;
+// Storage
+// ══ STORAGE ADAPTER ══
+// Prefers the host's persistent window.storage (persists in this environment);
+// falls back to localStorage when the file is opened directly in a browser.
+// An in-memory cache (STORE) keeps the rest of the app synchronous.
+function sKey(p){return 'sy_v2_'+p;}                              // cache + localStorage + backup-file key
+function cloudKey(p){return 'sy_v2_'+p.replace(/[\s\/\\'"]+/g,'_');} // window.storage-safe key (no spaces)
+const HAS_CLOUD = (typeof window!=='undefined' && window.storage && typeof window.storage.get==='function' && typeof window.storage.set==='function');
+let STORE={};
+function lsGet(k){try{return localStorage.getItem(k);}catch{return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch{}}
+async function hydrateStore(){
+  STORE={};
+  for(const name of Object.keys(DEFS)){
+    let val=null;
+    if(HAS_CLOUD){try{const r=await window.storage.get(cloudKey(name),false);if(r&&r.value!=null)val=r.value;}catch{}}
+    if(val===null)val=lsGet(sKey(name));
+    let arr=[];
+    if(val){try{arr=JSON.parse(val)||[];}catch{arr=[];}}
+    STORE[sKey(name)]=arr;
   }
+  await migrateBeams();
 }
-
-function loadItems(p){
-  return allSheetItems
-    .filter(function(item){ return item.part === p; })
-    .map(function(item){ return item.data || item; });
+// Fold any stock saved under the old W-Beam / S-Beam / I-Beam categories into the unified "Beams".
+async function migrateBeams(){
+  if(!STORE[sKey('Beams')])STORE[sKey('Beams')]=[];
+  let merged=STORE[sKey('Beams')];
+  let changed=false;
+  for(const name of ['W-Beam','S-Beam','I-Beam']){
+    let val=null;
+    if(HAS_CLOUD){try{const r=await window.storage.get(cloudKey(name),false);if(r&&r.value!=null)val=r.value;}catch{}}
+    if(val===null)val=lsGet(sKey(name));
+    let arr=[];if(val){try{arr=JSON.parse(val)||[];}catch{arr=[];}}
+    if(arr.length){
+      merged=merged.concat(arr);changed=true;
+      if(HAS_CLOUD){try{const r=window.storage.set(cloudKey(name),'[]',false);if(r&&r.catch)r.catch(()=>{});}catch{}}
+      lsSet(sKey(name),'[]'); // clear the legacy bucket
+    }
+  }
+  if(changed){STORE[sKey('Beams')]=merged;persistPart('Beams',JSON.stringify(merged));}
 }
+function persistPart(p,json){
+  if(HAS_CLOUD){try{const r=window.storage.set(cloudKey(p),json,false);if(r&&r.catch)r.catch(()=>{});}catch{}}
+  lsSet(sKey(p),json); // keep a local copy too when allowed
+}
+function loadItems(p){return STORE[sKey(p)]||[];}
+function saveItems(p,arr){const json=JSON.stringify(arr);STORE[sKey(p)]=arr;persistPart(p,json);}
 
-function saveItems(p,arr){
-  // Update the page immediately
-  allSheetItems = allSheetItems.filter(function(item){ return item.part !== p; });
-
-  arr.forEach(function(item){
-    item.part = p;
-    allSheetItems.push(item);
-  });
-
-  // Save to Google Sheets in the background
-  fetch(SHEET_API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(allSheetItems)
-  }).catch(function(err){
-    console.error('Could not save inventory to Google Sheets:', err);
-    alert('Could not save inventory to Google Sheets. Check your Apps Script deployment.');
-  });
+// ══ BACKUP / RESTORE (all part types) ══
+function exportBackup(){
+  const data={};
+  Object.keys(STORE).forEach(k=>{ if(k.indexOf('sy_v2_')===0) data[k]=JSON.stringify(STORE[k]||[]); });
+  const payload={app:'steel-yard',version:1,exported:new Date().toISOString(),store:data};
+  const totalItems=Object.values(data).reduce((n,v)=>{try{return n+(JSON.parse(v)||[]).length;}catch{return n;}},0);
+  if(totalItems===0){toast('There is no stock to back up yet.');return;}
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const d=new Date(),pad=n=>String(n).padStart(2,'0');
+  a.href=url;
+  a.download=`steel-yard-backup-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.json`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function importBackup(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    let store=null;
+    try{
+      const parsed=JSON.parse(reader.result);
+      store=(parsed&&parsed.store)?parsed.store:parsed; // accept full payload or a bare store object
+    }catch{toast('That file could not be read as a valid backup.');input.value='';return;}
+    const keys=Object.keys(store||{}).filter(k=>k.indexOf('sy_v2_')===0);
+    if(keys.length===0){toast('No steel-yard inventory was found in that file.');input.value='';return;}
+    let incoming=0;
+    keys.forEach(k=>{try{incoming+=(JSON.parse(store[k])||[]).length;}catch{}});
+    uiConfirm(`Restore ${incoming} item(s) across ${keys.length} shape group(s)?\n\nThis replaces the current stock saved here.`,'Restore').then(ok=>{
+      if(!ok){input.value='';return;}
+      keys.forEach(k=>{
+        let arr=[];try{arr=JSON.parse(store[k])||[];}catch{arr=[];}
+        STORE[k]=arr;
+        persistPart(k.slice(6), JSON.stringify(arr)); // strip 'sy_v2_' to get the part name
+      });
+      input.value='';
+      renderHome();
+      toast('Backup restored.');
+    });
+  };
+  reader.readAsText(file);
 }
 
 // State
@@ -900,10 +1022,32 @@ function updateStatsOnly(){
     ${isFiltered?`<div class="results-stat ftag">Filtered — ${items.length} total</div>`:''}
   `;
 }
-function deleteItem(id){
-  if(!confirm('Remove this item from inventory?'))return;
+// In-app confirm/toast — native confirm()/alert() are blocked in sandboxed previews, so use these.
+function toast(msg){
+  let t=document.getElementById('sy-toast');
+  if(!t){t=document.createElement('div');t.id='sy-toast';document.body.appendChild(t);}
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function uiConfirm(msg,okLabel){
+  return new Promise(resolve=>{
+    const ov=document.createElement('div');
+    ov.className='sy-confirm-ov';
+    ov.innerHTML=`<div class="sy-confirm"><div class="sy-confirm-msg"></div><div class="sy-confirm-btns"><button class="sy-c-cancel">Cancel</button><button class="sy-c-ok"></button></div></div>`;
+    ov.querySelector('.sy-confirm-msg').textContent=msg;
+    ov.querySelector('.sy-c-ok').textContent=okLabel||'OK';
+    document.body.appendChild(ov);
+    const done=v=>{ov.remove();resolve(v);};
+    ov.querySelector('.sy-c-cancel').onclick=()=>done(false);
+    ov.querySelector('.sy-c-ok').onclick=()=>done(true);
+    ov.onclick=e=>{if(e.target===ov)done(false);};
+  });
+}
+async function deleteItem(id){
+  if(!(await uiConfirm('Remove this item from inventory?','Remove')))return;
   saveItems(currentPart,loadItems(currentPart).filter(i=>i.id!==id));
   renderResults();renderHome();
+  toast('Item removed.');
 }
 
 // ══ MAP PIN (modal) ══
@@ -1041,11 +1185,16 @@ function buildModalFields(def,values){
   const c=document.getElementById('modal-fields');
   c.innerHTML='';
 
-  // Designation row (auto + editable)
+  // Designation row (auto + editable; for beams, typing a standard size auto-fills A/B/C)
   const dDiv=document.createElement('div');
   dDiv.className='mf full';
-  dDiv.innerHTML=`<label>Designation <span style="color:var(--muted);font-weight:300;letter-spacing:0;text-transform:none;font-size:10px;">(auto-generated — edit freely)</span></label>
-    <input class="desig-preview" type="text" id="mf-designation" placeholder="Will fill automatically…" value="${values.designation||''}">`;
+  const hint=def.sizeLookup
+    ? 'type a standard size (e.g. W8x31) to auto-fill A / B / C — or enter dimensions below'
+    : 'auto-generated — edit freely';
+  const dPh=def.sizeLookup?'e.g. W8x31 or S6x12.5':'Will fill automatically…';
+  dDiv.innerHTML=`<label>Designation <span style="color:var(--muted);font-weight:300;letter-spacing:0;text-transform:none;font-size:10px;">(${hint})</span></label>
+    <input class="desig-preview" type="text" id="mf-designation" placeholder="${dPh}" value="${values.designation||''}">
+    <div id="mf-lookup-note" style="font-size:11px;color:var(--success);margin-top:5px;min-height:14px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;"></div>`;
   c.appendChild(dDiv);
 
   def.itemFields.forEach(f=>{
@@ -1058,20 +1207,123 @@ function buildModalFields(def,values){
     }
     c.appendChild(div);
 
-    // Hook auto-desig on fields marked auto
+    // Hook auto-fill on fields marked auto
     if(f.auto){
       const el=div.querySelector('input');
-      if(el) el.addEventListener('input',updateAutoDesig);
+      if(el) el.addEventListener('input',def.sizeLookup?onDimInput:updateAutoDesig);
     }
     const el=div.querySelector('input,select');
     if(el&&f.key!=='notes') el.addEventListener('keydown',e=>{if(e.key==='Enter')saveModal();});
   });
+
+  // Size auto-fill: typing a recognized designation fills the standard dimensions (full overwrite)
+  if(def.sizeLookup){
+    const dInput=document.getElementById('mf-designation');
+    if(dInput){
+      dInput.addEventListener('input',()=>beamFillFromDesignation(false));
+      if(values.designation)beamFillFromDesignation(false);
+    }
+    // Explicit reverse-lookup button: identify the size from the dimensions entered
+    const noteDiv=document.getElementById('mf-lookup-note');
+    if(noteDiv){
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.textContent='🔍 Identify size from dimensions';
+      btn.style.cssText='margin-top:8px;background:none;border:1px solid rgba(184,197,208,.2);border-radius:4px;color:var(--steel);padding:7px 12px;cursor:pointer;font-family:\'Barlow Condensed\',sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;';
+      btn.onmouseover=()=>btn.style.borderColor='var(--rust)';
+      btn.onmouseout=()=>btn.style.borderColor='rgba(184,197,208,.2)';
+      btn.onclick=reverseFindSize;
+      noteDiv.parentNode.insertBefore(btn,noteDiv);
+    }
+  }
+}
+
+// Fill standard dimensions from the size table when the designation matches.
+// blanksOnly=true fills only empty fields (used when entering dimensions, so typed values are kept).
+function beamFillFromDesignation(blanksOnly){
+  const dEl=document.getElementById('mf-designation');
+  const note=document.getElementById('mf-lookup-note');
+  if(!dEl)return false;
+  const m=lookupSize(currentPart,dEl.value);
+  if(m){
+    Object.keys(m).forEach(k=>{
+      const el=document.getElementById('mf-'+k);
+      if(el && (!blanksOnly || !el.value.trim()))el.value=m[k];
+    });
+    if(note){note.style.color='var(--success)';note.textContent='✓ Standard dimensions filled from the metals guide — edit if needed.';}
+    return true;
+  }
+  if(note)note.textContent='';
+  return false;
+}
+
+// Reverse lookup: given any subset of entered dimensions, find the one standard size that matches.
+function matchByDims(part,vals){
+  const t=SIZE_TABLES[part];
+  if(!t)return null;
+  const entered=[];
+  ['depth','flange_width','web_thick','flange_thick','weight','leg_a','leg_b','thickness','od','wall','size','width','height','diameter'].forEach(k=>{
+    if(vals[k]!==undefined&&vals[k]!==''){const v=parseDim(vals[k]);if(!isNaN(v))entered.push([k,v]);}
+  });
+  if(!entered.length)return null;
+  const hits=[];
+  for(const desig in t){
+    const rec=t[desig];let ok=true;
+    for(const [k,v] of entered){
+      if(rec[k]===undefined){ok=false;break;}
+      const tol=(k==='weight')?0.06:0.03;
+      if(Math.abs(rec[k]-v)>tol){ok=false;break;}
+    }
+    if(ok)hits.push(desig);
+  }
+  return hits.length===1?{key:hits[0],rec:t[hits[0]]}:null; // only on a unique match
+}
+
+// Dimension entry for size-lookup shapes. Builds a W-style designation from depth+weight only when
+// the box is empty or already a W-auto pattern (never clobbers a typed S/C or custom name), and fills
+// blank standard dims only when the recognized size actually changes — so fields never lock.
+function onDimInput(){
+  const def=DEFS[currentPart];
+  const dEl=document.getElementById('mf-designation');
+  if(!dEl)return;
+  const before=dEl.value;
+  const autoFn=AUTO_DESIG[currentPart];
+  const isAutoW=/^W\d+(\.\d+)?x(\?|\d+(\.\d+)?)$/i.test(before);
+  if(autoFn && (before===''||isAutoW)){
+    const vals={};
+    def.itemFields.forEach(f=>{const el=document.getElementById('mf-'+f.key);if(el)vals[f.key]=el.value.trim();});
+    const g=autoFn(vals);
+    if(g)dEl.value=g;
+  }
+  // Fill blanks only when we move into a recognized size we weren't already on
+  if(dEl.value!==before && lookupSize(currentPart,dEl.value))beamFillFromDesignation(true);
+}
+
+// Explicit reverse lookup (button): identify the standard size from whatever dimensions are entered.
+function reverseFindSize(){
+  const def=DEFS[currentPart];
+  const dEl=document.getElementById('mf-designation');
+  const note=document.getElementById('mf-lookup-note');
+  const vals={};
+  def.itemFields.forEach(f=>{const el=document.getElementById('mf-'+f.key);if(el)vals[f.key]=el.value.trim();});
+  const m=matchByDims(currentPart,vals);
+  if(m){
+    if(dEl)dEl.value=m.key;
+    Object.keys(m.rec).forEach(k=>{const el=document.getElementById('mf-'+k);if(el&&!el.value.trim())el.value=m.rec[k];});
+    if(note){note.style.color='var(--success)';note.textContent='✓ Matched '+m.key+' — filled the blank fields. Edit anything as needed.';}
+  }else if(note){
+    note.style.color='var(--muted)';
+    note.textContent='No single standard size matches those dimensions — add another dimension, or it may not be in the table yet.';
+  }
 }
 
 function updateAutoDesig(){
   const def=DEFS[currentPart];
   const autoFn=AUTO_DESIG[currentPart];
   if(!autoFn)return;
+  const dEl=document.getElementById('mf-designation');
+  // Don't overwrite a recognized standard size (e.g. a typed/auto-filled S8x23, W8x31 or C6x8.2)
+  if(def&&def.sizeLookup&&dEl&&lookupSize(currentPart,dEl.value))return;
   // collect current field values
   const vals={};
   def.itemFields.forEach(f=>{
@@ -1079,8 +1331,10 @@ function updateAutoDesig(){
     if(el)vals[f.key]=el.value.trim();
   });
   const generated=autoFn(vals);
-  const dEl=document.getElementById('mf-designation');
-  if(dEl&&generated) dEl.value=generated;
+  if(dEl&&generated){
+    dEl.value=generated;
+    if(def&&def.sizeLookup&&lookupSize(currentPart,generated))beamFillFromDesignation();
+  }
 }
 
 function switchTab(name,btn){
@@ -1138,9 +1392,7 @@ function overlayClick(e){if(e.target===document.getElementById('modal'))closeMod
 function goHome(){renderHome();showScreen('screen-home');}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 
-loadAllItemsFromSheet().then(function(){
-  renderHome();
-});
+hydrateStore().then(renderHome).catch(renderHome);
 </script>
 </body>
 </html>
